@@ -88,21 +88,17 @@ server <- function(input, output, session) {
       mutate(winner = ifelse(home_score > away_score, 1, 0)) %>%
       select(home_team, away_team, winner)
     
-    # Ensure that the levels of A and B in the contest data match the levels in the training data
+    # Model Training
     world_cup <- data %>%
-      rename(A = home_team, B = away_team) %>%
-      mutate(A = factor(A, levels = unique(c(data$home_team, data$away_team))),
-             B = factor(B, levels = unique(c(data$home_team, data$away_team))))
-
+      rename(A = home_team, B = away_team)
+    
     model <- glm(winner ~ A + B, data = world_cup, family = binomial)
     
     sample_countries <- sample(unique(c(world_cup$A, world_cup$B)), size = 32, replace = FALSE)
     home_team <- sample_countries[1:16]
     away_team <- sample_countries[17:32]
     
-    contest <- data.frame(A = home_team, B = away_team) %>%
-      mutate(A = factor(A, levels = levels(world_cup$A)),
-             B = factor(B, levels = levels(world_cup$B)))
+    contest <- data.frame(A = home_team, B = away_team)
     
     predictions <- predict(model, contest, type = "response")
     contest$predictions <- ifelse(predictions >= .5, 1, 0)
@@ -129,9 +125,7 @@ server <- function(input, output, session) {
         winners2 <- winners2[1:length(winners1)]
       }
       
-      contest <- data.frame(A = winners1, B = winners2) %>%
-        mutate(A = factor(A, levels = levels(world_cup$A)),
-               B = factor(B, levels = levels(world_cup$B)))
+      contest <- data.frame(A = winners1, B = winners2)
       
       predictions <- predict(model, contest, type = "response")
       contest$predictions <- ifelse(predictions >= .5, 1, 0)
@@ -159,3 +153,4 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server, options = list(host = "0.0.0.0", port = port))
+
