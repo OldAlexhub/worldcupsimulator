@@ -10,6 +10,7 @@ mongo <- mongo(
   collection= 'soccer',
   url = url
 )
+port <- as.numeric(Sys.getenv("PORT", 3838))
 
 
 ui <- fluidPage(
@@ -167,4 +168,4 @@ server <- function(input, output, session) {
   })
 }
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, options = list(host = "0.0.0.0", port = port))
