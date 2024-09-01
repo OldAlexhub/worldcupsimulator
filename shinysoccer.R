@@ -76,39 +76,47 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  
+  # Load data at start to display initial teams
+  data <- mongo$find(
+    query = '{"tournament": "World Cup"}',
+    fields = '{"home_team": 1, "away_team": 1, "home_score": 1, "away_score": 1, "_id": 0}'
+  )
+  
+  data <- data %>%
+    mutate(winner = ifelse(home_score > away_score, 1, 0)) %>%
+    select(home_team, away_team, winner)
+  
+  sample_countries <- sample(unique(c(data$home_team, data$away_team)), size = 32, replace = FALSE)
+  home_team <- sample_countries[1:16]
+  away_team <- sample_countries[17:32]
+  
+  contest <- data.frame(A = home_team, B = away_team)
+  
+  # Display the initial teams
+  output$contest_table <- renderDT({
+    datatable(contest, options = list(dom = 't', paging = FALSE), rownames = FALSE)
+  })
+  
   observeEvent(input$run, {
-    # Lazy load data and only select necessary fields
-    data <- mongo$find(
-      query = '{"tournament": "World Cup"}',
-      fields = '{"home_team": 1, "away_team": 1, "home_score": 1, "away_score": 1, "_id": 0}'
-    )
+    progress <- shiny::Progress$new()
+    progress$set(message = "Matches are being played now", value = 0)
+    on.exit(progress$close())
     
-    # Process data
-    data <- data %>%
-      mutate(winner = ifelse(home_score > away_score, 1, 0)) %>%
-      select(home_team, away_team, winner)
-    
-    # Model Training
+    # Refactor the contest data to match model levels
     world_cup <- data %>%
       rename(A = home_team, B = away_team)
     
     model <- glm(winner ~ A + B, data = world_cup, family = binomial)
     
-    sample_countries <- sample(unique(c(world_cup$A, world_cup$B)), size = 32, replace = FALSE)
-    home_team <- sample_countries[1:16]
-    away_team <- sample_countries[17:32]
-    
-    contest <- data.frame(A = home_team, B = away_team)
+    contest$A <- factor(contest$A, levels = levels(world_cup$A))
+    contest$B <- factor(contest$B, levels = levels(world_cup$B))
     
     predictions <- predict(model, contest, type = "response")
     contest$predictions <- ifelse(predictions >= .5, 1, 0)
     
     contest <- contest %>%
       filter(predictions == 1)
-    
-    progress <- shiny::Progress$new()
-    progress$set(message = "Matches are being played now", value = 0)
-    on.exit(progress$close())
     
     while (nrow(contest) > 1) {
       half_rows <- floor(nrow(contest) / 2)
@@ -126,6 +134,9 @@ server <- function(input, output, session) {
       }
       
       contest <- data.frame(A = winners1, B = winners2)
+      
+      contest$A <- factor(contest$A, levels = levels(world_cup$A))
+      contest$B <- factor(contest$B, levels = levels(world_cup$B))
       
       predictions <- predict(model, contest, type = "response")
       contest$predictions <- ifelse(predictions >= .5, 1, 0)
@@ -153,4 +164,5 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server, options = list(host = "0.0.0.0", port = port))
+
 
