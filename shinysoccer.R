@@ -163,11 +163,7 @@ server <- function(input, output, session) {
     output$winner_section <- renderUI({
       tags$h2(paste("🎉 The winner is:", winner, "🎉"))
     })
-    
-    # Clear unused variables and trigger garbage collection
-    rm(contest, model)
-    gc()
-    
+        
     output$loading_message <- renderText({""})
   })
 }
