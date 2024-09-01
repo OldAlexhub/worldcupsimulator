@@ -81,7 +81,8 @@ server <- function(input, output, session) {
   # Load data once
   data <- mongo$find()
   data <- data %>%
-    filter(tournament == 'World Cup')
+    filter(tournament == 'World Cup') %>%
+    sample_n(size = min(nrow(data), 15000))
   
   # Extract unique teams
   home <- unique(data['home_team'])
