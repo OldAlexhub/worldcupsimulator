@@ -15,10 +15,10 @@ RUN R -e "install.packages(c('shiny', 'dplyr', 'DT', 'shinycssloaders', 'mongoli
 
 # Copy the Shiny app files into the Docker image
 COPY shinysoccer.R /srv/shiny-server/
-COPY .env /srv/shiny-server/
 
 # Expose the Shiny app port
 EXPOSE 3838
 
 # Run the Shiny app
-CMD ["R", "-e", "shiny::runApp('/srv/shiny-server')"]
+CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/shinysoccer.R')"]
+
