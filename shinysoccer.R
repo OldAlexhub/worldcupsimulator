@@ -3,9 +3,8 @@ library(dplyr)
 library(DT)
 library(shinycssloaders)
 library(mongolite)
-library(data.table)
 
-# Access the environment variable directly
+
 url <- Sys.getenv("url")
 
 mongo <- mongo(
@@ -13,8 +12,6 @@ mongo <- mongo(
   url = url
 )
 
-# Determine the port from the environment variable
-port <- as.numeric(Sys.getenv("PORT", 3838))
 
 ui <- fluidPage(
   tags$head(
@@ -77,13 +74,10 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  
-  # Load data once
   data <- mongo$find()
   data <- data %>%
     filter(tournament == 'World Cup')
   
-  # Extract unique teams
   home <- unique(data['home_team'])
   away <- unique(data['away_team'])
   
@@ -93,30 +87,31 @@ server <- function(input, output, session) {
   away <- away %>%
     rename(country = away_team)
   
-  countries <- unique(rbind(home, away)$country)
+  countries <- rbind(home, away)
+  countries <- unique(countries$country)
+  countries <- as.data.frame(countries)
   
-  # Initial random selection of 32 teams
-  sample_countries <- sample(countries, size = 32, replace = FALSE)
+  sample_countries <- sample(countries$countries, size = 32, replace = FALSE)
   home_team <- sample_countries[1:16]
   away_team <- sample_countries[17:32]
   
   contest <- data.frame(A = home_team, B = away_team)
   
-  # Display the initial teams
   output$contest_table <- renderDT({
     datatable(contest, options = list(dom = 't', paging = FALSE), rownames = FALSE)
   })
   
   observeEvent(input$run, {
+    # Initialize progress bar
     progress <- shiny::Progress$new()
     progress$set(message = "Matches are being played now", value = 0)
     on.exit(progress$close())
     
-    # Prepare the data for modeling
+    data <- mongo$find()
     data$winner <- ifelse(data$home_score > data$away_score, 1, 0)
     
     world_cup <- data %>%
-      select(-date, -neutral, -home_score, -away_score, -tournament, -country) %>%
+      select(-date, -neutral, -home_score, -away_score, -neutral, -tournament, -country) %>%
       rename(A = home_team, B = away_team)
     
     world_cup2 <- world_cup %>%
@@ -125,19 +120,16 @@ server <- function(input, output, session) {
     
     world <- rbind(world_cup, world_cup2)
     
-    # Train the model
     model <- glm(winner ~ A + B, world, family = binomial)
     
-    # Predict the outcomes and simulate the contest
+    predictions <- predict(model, contest, type = "response")
+    contest$predictions <- ifelse(predictions >= .5, 1, 0)
+    contest <- contest %>%
+      filter(predictions == 1)
+    
+    progress$inc(0.25, detail = "Round 1 complete...")
+    
     while (nrow(contest) > 1) {
-      contest$A <- factor(contest$A, levels = levels(world$A))
-      contest$B <- factor(contest$B, levels = levels(world$B))
-      
-      predictions <- predict(model, contest, type = "response")
-      contest$predictions <- ifelse(predictions >= .5, 1, 0)
-      contest <- contest %>%
-        filter(predictions == 1)
-      
       half_rows <- floor(nrow(contest) / 2)
       shuffled_indices <- sample(seq_len(nrow(contest)))
       indices1 <- shuffled_indices[1:half_rows]
@@ -154,20 +146,28 @@ server <- function(input, output, session) {
       
       contest <- data.frame(A = winners1, B = winners2)
       
+      predictions <- predict(model, contest, type = "response")
+      contest$predictions <- ifelse(predictions >= .5, 1, 0)
+      
+      contest <- contest %>%
+        filter(predictions == 1)
+      
+      # Update progress after each round
       progress$inc(0.25, detail = paste("Round", (4 - floor(nrow(contest) / 2)), "complete..."))
     }
     
-    winner <- contest$A[1]
+    winner <- contest$A
     output$winner_output <- renderText({paste("The winner is:", winner)})
     
     output$winner_section <- renderUI({
       tags$h2(paste("🎉 The winner is:", winner, "🎉"))
     })
-        
+    
+    # Clear the loading message after the contest is done
     output$loading_message <- renderText({""})
   })
 }
 
-shinyApp(ui = ui, server = server, options = list(host = "0.0.0.0", port = port))
+shinyApp(ui = ui, server = server)
 
 
