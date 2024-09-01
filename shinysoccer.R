@@ -3,10 +3,6 @@ library(dplyr)
 library(DT)
 library(shinycssloaders)
 library(mongolite)
-library(dotenv)
-
-load_dot_env(file = ".env")
-
 
 url <- Sys.getenv("url")
 
