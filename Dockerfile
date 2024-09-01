@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libsodium-dev \
     libmongoc-dev \
-    libjsonlite-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,4 +25,5 @@ EXPOSE 3838
 
 # Run the Shiny app
 CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/shinysoccer.R')"]
+
 
