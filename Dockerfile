@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 RUN R -e "install.packages('remotes', repos='http://cran.rstudio.com/')"
 
 # Install necessary R packages including mongolite
-RUN R -e "remotes::install_cran(c('shiny', 'dplyr', 'DT', 'shinycssloaders', 'mongolite'))"
+RUN R -e "remotes::install_cran(c('shiny', 'dplyr', 'DT', 'shinycssloaders', 'mongolite','data.table'))"
 
 # Copy the Shiny app files into the Docker image
 COPY shinysoccer.R /srv/shiny-server/
