@@ -1,20 +1,20 @@
 library(shiny)
 library(dplyr)
 library(DT)
-library(rsample)
-library(Metrics)
-library(rpart)
-library(randomForest)
-library(nnet)
-library(caret)
 library(shinycssloaders)
 library(mongolite)
 library(dotenv)
 
-url = load_dot_env(file = ".env")
+load_dot_env(file = ".env")
 
 
-url
+url <- Sys.getenv("url")
+
+mongo <- mongo(
+  collection= 'soccer',
+  url = url
+)
+
 
 ui <- fluidPage(
   tags$head(
@@ -77,7 +77,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  data <- read.csv("all_matches.csv")
+  data <- mongo$find()
   data <- data %>%
     filter(tournament == 'World Cup')
   
@@ -110,7 +110,7 @@ server <- function(input, output, session) {
     progress$set(message = "Matches are being played now", value = 0)
     on.exit(progress$close())
     
-    data <- read.csv("all_matches.csv")
+    data <- mongo$find()
     data$winner <- ifelse(data$home_score > data$away_score, 1, 0)
     
     world_cup <- data %>%
